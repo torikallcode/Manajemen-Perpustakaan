@@ -82,3 +82,36 @@ func CreateBook(w http.ResponseWriter, r *http.Request) {
 	book.Book_id = int(id)
 	json.NewEncoder(w).Encode(book)
 }
+
+func UpdateBook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	id, err := strconv.Atoi(params["id"])
+	if err != nil {
+		http.Error(w, "Invalid book ID", http.StatusBadRequest)
+		return
+	}
+
+	var book models.Book
+	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	query := "UPDATE books SET title = ?, author = ?, publication_year = ?, genre = ?, total_copies = ? WHERE book_id = ?"
+	_, err = databases.DB.Exec(query, book.Title, book.Author, book.Publication_year, book.Genre, book.Total_copies, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch the updated book to ensure consistency
+	var updatedBook models.Book
+	err = databases.DB.QueryRow("SELECT * FROM books WHERE book_id = ?", id).Scan(&updatedBook.Book_id, &updatedBook.Title, &updatedBook.Author, &updatedBook.Publication_year, &updatedBook.Genre, &updatedBook.Total_copies)
+	if err != nil {
+		http.Error(w, "Failed to fetch updated book", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(updatedBook)
+}
