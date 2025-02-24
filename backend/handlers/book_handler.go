@@ -57,3 +57,28 @@ func GetBook(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewEncoder(w).Encode(book)
 }
+
+func CreateBook(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	var book models.Book
+	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
+		http.Error(w, "invalid book", http.StatusBadRequest)
+		return
+	}
+
+	query := "INSERT INTO books (title, author, publication_year, genre, total_copies) VALUE (?,?,?,?,?)"
+	result, err := databases.DB.Exec(query, &book.Title, &book.Author, &book.Publication_year, &book.Genre, &book.Total_copies)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	book.Book_id = int(id)
+	json.NewEncoder(w).Encode(book)
+}
