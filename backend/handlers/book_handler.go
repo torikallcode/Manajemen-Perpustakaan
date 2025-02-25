@@ -22,14 +22,45 @@ func GetBooks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer rows.Close() // Pastikan rows ditutup setelah selesai
 
 	for rows.Next() {
 		var book models.Book
-		if err := rows.Scan(&book.Book_id, &book.Title, &book.Author, &book.Publication_year, &book.Genre, &book.Total_copies); err != nil {
+		// Gunakan sql.NullString untuk menangani NULL
+		var language sql.NullString
+
+		if err := rows.Scan(
+			&book.Book_id,
+			&book.Title,
+			&book.Author,
+			&book.Publication_year,
+			&book.Genre,
+			&book.Total_copies,
+			&book.Isbn,
+			&language, // Gunakan variable language yang baru
+			&book.Shelf_location,
+			&book.Status,
+			&book.Publisher,
+			&book.Edition,
+			&book.Page_count,
+			&book.Cover_image_url,
+		); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		// Hanya set Language jika nilainya valid
+		if language.Valid {
+			book.Language = language.String
+		}
+
 		books = append(books, book)
+	}
+
+	// Tambahkan pengecekan error setelah iterasi
+	if err = rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	json.NewEncoder(w).Encode(books)
@@ -98,8 +129,8 @@ func UpdateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := "UPDATE books SET title = ?, author = ?, publication_year = ?, genre = ?, total_copies = ? WHERE book_id = ?"
-	_, err = databases.DB.Exec(query, book.Title, book.Author, book.Publication_year, book.Genre, book.Total_copies, id)
+	query := "UPDATE books SET title = ?, author = ?, publication_year = ?, genre = ?, total_copies = ?, isbn = ?, language = ?, shelf_location = ?, status = ?, publisher = ?, edition = ?, page_count = ?, cover_image_url WHERE book_id = ?"
+	_, err = databases.DB.Exec(query, book.Title, book.Author, book.Publication_year, book.Genre, book.Total_copies, book.Isbn, book.Language, book.Shelf_location, book.Status, book.Publisher, book.Edition, book.Page_count, book.Cover_image_url, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
